@@ -1,1 +1,74 @@
+version: "3"
+
+services:
+  mariadb:
+    image: mariadb:10.6
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+  redis_cache:
+    image: redis:alpine
+
+  redis_queue:
+    image: redis:alpine
+
+  redis_socketio:
+    image: redis:alpine
+
+  site:
+    image: frappe/erpnext-worker:version-15
+    command: new
+    environment:
+      SITE_NAME: erp.mihir.local
+      DB_ROOT_USER: root
+      MYSQL_ROOT_PASSWORD: root
+      ADMIN_PASSWORD: admin
+      INSTALL_APPS: erpnext
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - assets:/home/frappe/frappe-bench/sites/assets
+    depends_on:
+      - mariadb
+      - redis_cache
+      - redis_queue
+      - redis_socketio
+
+  backend:
+    image: frappe/erpnext-worker:version-15
+    restart: always
+    command: worker
+    depends_on:
+      - site
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - assets:/home/frappe/frappe-bench/sites/assets
+
+  scheduler:
+    image: frappe/erpnext-worker:version-15
+    restart: always
+    command: schedule
+    depends_on:
+      - site
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - assets:/home/frappe/frappe-bench/sites/assets
+
+  frontend:
+    image: frappe/erpnext-nginx:version-15
+    restart: always
+    ports:
+      - "8000:8080"
+    depends_on:
+      - site
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - assets:/home/frappe/frappe-bench/sites/assets
+
+volumes:
+  mariadb_data:
+  sites:
+  assets:
 
